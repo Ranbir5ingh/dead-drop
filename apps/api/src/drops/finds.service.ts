@@ -5,6 +5,7 @@ import {
   hunterPoints,
   isDifficulty,
   type FindAttemptResponse,
+  type PublicUser,
 } from "@deaddrop/shared";
 import { and, eq, sql } from "drizzle-orm";
 import { AiService } from "../ai/ai.service";
@@ -26,9 +27,10 @@ export class FindsService {
 
   async attempt(
     dropId: string,
-    finderName: string,
+    user: PublicUser,
     photo: UploadedPhoto | undefined,
   ): Promise<FindAttemptResponse> {
+    const finderName = user.displayName;
     const mime = requireImage(photo, true);
     if (!photo || !mime) {
       throw new NotFoundException("A photo is required.");
@@ -45,11 +47,11 @@ export class FindsService {
         "This is a sample riddle so the board is not empty. Nothing was physically hidden, so it cannot be scored. Hide a real one.",
       );
     }
-    if (namesMatch(drop.hiderName, finderName)) {
+    if (drop.hiderUserId === user.id || namesMatch(drop.hiderName, finderName)) {
       throw new ConflictException("You hid this one. Leave it for someone else.");
     }
 
-    const prior = await this.attemptState(drop.id, finderName);
+    const prior = await this.attemptState(drop.id, user);
     if (prior.verified) {
       throw new ConflictException("You already verified this drop. Once is the whole prize.");
     }
@@ -85,12 +87,7 @@ export class FindsService {
         const rows = await tx
           .select({ verified: finds.verified })
           .from(finds)
-          .where(
-            and(
-              eq(finds.dropId, drop.id),
-              sql`lower(${finds.finderName}) = ${finderName.toLowerCase()}`,
-            ),
-          );
+          .where(and(eq(finds.dropId, drop.id), this.sameFinder(user)));
         const verified = rows.some((row) => row.verified);
         if (verified) {
           throw new ConflictException("You already verified this drop. Once is the whole prize.");
@@ -104,6 +101,7 @@ export class FindsService {
         await tx.insert(finds).values({
           id: findId,
           dropId: drop.id,
+          finderUserId: user.id,
           finderName,
           photoUrl: stored.url,
           verified: verdict.match,
@@ -135,16 +133,15 @@ export class FindsService {
     }
   }
 
-  private async attemptState(dropId: string, finderName: string) {
+  private sameFinder(user: PublicUser) {
+    return sql`(${finds.finderUserId} = ${user.id} or lower(${finds.finderName}) = ${user.displayName.toLowerCase()})`;
+  }
+
+  private async attemptState(dropId: string, user: PublicUser) {
     const rows = await this.db.orm
       .select({ verified: finds.verified })
       .from(finds)
-      .where(
-        and(
-          eq(finds.dropId, dropId),
-          sql`lower(${finds.finderName}) = ${finderName.toLowerCase()}`,
-        ),
-      );
+      .where(and(eq(finds.dropId, dropId), this.sameFinder(user)));
     return {
       count: rows.length,
       verified: rows.some((row) => row.verified),

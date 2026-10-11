@@ -5,6 +5,8 @@ import type {
   FindAttemptResponse,
   HiderDrop,
   LeaderboardResponse,
+  PlaceSuggestion,
+  PublicUser,
   PublishDropResponse,
 } from "@deaddrop/shared";
 
@@ -18,12 +20,9 @@ export class ApiError extends Error {
   }
 }
 
-function baseUrl(): string {
-  const value = process.env.NEXT_PUBLIC_API_URL;
-  if (!value) {
-    throw new ApiError("NEXT_PUBLIC_API_URL is not set on this frontend.", 0);
-  }
-  return value.replace(/\/$/, "");
+/** Same-origin proxy. The session cookie never has to be third-party. */
+function apiPath(path: string): string {
+  return `/backend/api${path}`;
 }
 
 async function readMessage(response: Response): Promise<string> {
@@ -46,8 +45,9 @@ async function readMessage(response: Response): Promise<string> {
 async function send<T>(path: string, init: RequestInit | undefined, timeoutMs: number): Promise<T> {
   let response: Response;
   try {
-    response = await fetch(`${baseUrl()}/api${path}`, {
+    response = await fetch(apiPath(path), {
       ...init,
+      credentials: "include",
       cache: "no-store",
       signal: AbortSignal.timeout(timeoutMs),
     });
@@ -58,8 +58,57 @@ async function send<T>(path: string, init: RequestInit | undefined, timeoutMs: n
   return (await response.json()) as T;
 }
 
-export function listDrops(): Promise<DropListItem[]> {
-  return send("/drops", undefined, 20_000);
+export function listDrops(lat: number, lng: number): Promise<DropListItem[]> {
+  const query = new URLSearchParams({ lat: String(lat), lng: String(lng) });
+  return send(`/drops?${query.toString()}`, undefined, 20_000);
+}
+
+export function currentUser(): Promise<{ user: PublicUser | null }> {
+  return send("/auth/me", undefined, 15_000);
+}
+
+export function authProviders(): Promise<{ google: boolean; github: boolean }> {
+  return send("/auth/providers", undefined, 12_000);
+}
+
+export function signup(input: {
+  email: string;
+  password: string;
+  displayName: string;
+}): Promise<{ user: PublicUser }> {
+  return send(
+    "/auth/signup",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(input),
+    },
+    20_000,
+  );
+}
+
+export function login(input: { email: string; password: string }): Promise<{ user: PublicUser }> {
+  return send(
+    "/auth/login",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(input),
+    },
+    20_000,
+  );
+}
+
+export function logout(): Promise<{ ok: true }> {
+  return send("/auth/logout", { method: "POST" }, 15_000);
+}
+
+export function searchPlaces(query: string): Promise<PlaceSuggestion[]> {
+  return send(`/places?q=${encodeURIComponent(query)}`, undefined, 12_000);
+}
+
+export function myDrops(): Promise<HiderDrop[]> {
+  return send("/drops/mine", undefined, 20_000);
 }
 
 export function getDrop(id: string): Promise<DropDetail> {
@@ -77,46 +126,31 @@ export function leaderboard(): Promise<LeaderboardResponse> {
 export function createDrop(input: {
   vicinityDescription: string;
   objectDescription: string;
-  areaName: string;
-  hiderName: string;
+  placeId: string;
   photo: File | null;
 }): Promise<CreateDropResponse> {
   const form = new FormData();
   form.set("vicinityDescription", input.vicinityDescription);
   form.set("objectDescription", input.objectDescription);
-  form.set("areaName", input.areaName);
-  form.set("hiderName", input.hiderName);
+  form.set("placeId", input.placeId);
   if (input.photo) form.set("photo", input.photo);
   return send("/drops", { method: "POST", body: form }, 60_000);
 }
 
-export function publishDrop(id: string, hiderName: string): Promise<PublishDropResponse> {
-  return send(
-    `/drops/${id}/publish`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ hiderName }),
-    },
-    20_000,
-  );
+export function publishDrop(id: string): Promise<PublishDropResponse> {
+  return send(`/drops/${id}/publish`, { method: "POST" }, 20_000);
 }
 
-export function discardDrop(id: string, hiderName: string): Promise<{ ok: true }> {
-  return send(
-    `/drops/${id}?hiderName=${encodeURIComponent(hiderName)}`,
-    { method: "DELETE" },
-    20_000,
-  );
+export function discardDrop(id: string): Promise<{ ok: true }> {
+  return send(`/drops/${id}`, { method: "DELETE" }, 20_000);
 }
 
-export function submitFind(
-  id: string,
-  finderName: string,
-  photo: File,
-): Promise<FindAttemptResponse> {
+export function submitFind(id: string, photo: File): Promise<FindAttemptResponse> {
   const form = new FormData();
-  form.set("finderName", finderName);
   form.set("photo", photo);
   return send(`/drops/${id}/finds`, { method: "POST", body: form }, 90_000);
+}
+
+export function oauthStart(provider: "google" | "github"): string {
+  return apiPath(`/auth/oauth/${provider}`);
 }

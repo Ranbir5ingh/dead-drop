@@ -2,19 +2,20 @@
 
 import { useEffect, useState } from "react";
 import type { HiderDrop } from "@deaddrop/shared";
-import { ApiError, hiderDrops } from "@/lib/api";
-import { readDisplayName, readSeenCounts, writeSeenCounts } from "@/lib/name";
 import { ChunkLink } from "@/components/ui";
 import { SuccessBurst } from "@/components/success-burst";
+import { ApiError, myDrops } from "@/lib/api";
+import { readSeenCounts, writeSeenCounts } from "@/lib/name";
+import { useSession } from "@/lib/session";
 
 export function FoundMoment() {
+  const { user, ready } = useSession();
   const [fresh, setFresh] = useState<HiderDrop[]>([]);
 
   useEffect(() => {
-    const name = readDisplayName();
-    if (!name) return;
+    if (!ready || !user) return;
     let cancelled = false;
-    void hiderDrops(name)
+    void myDrops()
       .then((drops) => {
         if (cancelled) return;
         const seen = readSeenCounts();
@@ -31,7 +32,7 @@ export function FoundMoment() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [ready, user]);
 
   if (fresh.length === 0) return null;
   const top = fresh[0];

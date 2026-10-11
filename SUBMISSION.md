@@ -41,9 +41,9 @@ The board is relational on purpose. A drop has many find attempts, a leaderboard
 
 `AiService` is provider-neutral. `generateRiddle` and `verifyFind` validate JSON, retry twice, and then either fall back to a hand-written riddle or refuse to score. A deterministic scanner rejects addresses, phone numbers, coordinates, plus codes, and lookalike links before a riddle is shown. A yes below confidence 0.72 becomes a no in code. The model cannot overrule that. If the referee errors, the attempt is not burned.
 
-The UI is a paper scrapbook: Space Grotesk, Caveat, stamp badges, sticker cards, contour texture, chunky buttons. GSAP staggers the hero, floats the map pins, reveals the three steps on scroll, lifts a card under a pointer, and bursts when a find is verified. Every page ends by telling you to go outside. The hunt is capped at 40 cards. There is no infinite scroll.
+The UI is a paper scrapbook: Fraunces, Space Grotesk, Caveat, stamp badges, sticker cards, contour texture, chunky buttons, and skeleton states while location, riddles, and the board load. GSAP staggers the hero, floats the map pins, reveals the three steps on scroll, lifts a card under a pointer, and bursts when a find is verified. Every page ends by telling you to go outside. The hunt is capped at 40 cards within 8 km of the phone. There is no infinite scroll.
 
-Identity is a display name in localStorage. No accounts, and the hide form says so.
+Accounts are email and password, with Google and GitHub authorization-code OAuth when the server has client credentials. Sessions are httpOnly cookies. Scores use the account's display name. Hunt asks the device for a location and shows distance only.
 
 ## Why Open Innovation Matters
 

@@ -8,6 +8,7 @@ import {
 } from "@nestjs/common";
 import {
   BOARD_LIMIT,
+  NEARBY_RADIUS_METERS,
   hiderPoints,
   isDifficulty,
   type CreateDropResponse,
@@ -15,6 +16,7 @@ import {
   type DropDetail,
   type DropListItem,
   type HiderDrop,
+  type PublicUser,
   type PublishDropResponse,
 } from "@deaddrop/shared";
 import { and, desc, eq, sql } from "drizzle-orm";
@@ -23,6 +25,7 @@ import { NAME_PATTERN, namesMatch } from "../common/names";
 import { DbService } from "../db/db.service";
 import { drops, finds } from "../db/schema";
 import { scanRiddle } from "../ai/safety";
+import { PlacesService } from "../places/places.service";
 import { StorageService } from "../storage/storage.service";
 import type { CreateDropDto } from "./dto/create-drop.dto";
 import { extensionFor, requireImage, type UploadedPhoto } from "./photo";
@@ -45,6 +48,17 @@ function asDifficulty(value: number): Difficulty {
   return value;
 }
 
+function haversine(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const earth = 6_371_000;
+  const p1 = (lat1 * Math.PI) / 180;
+  const p2 = (lat2 * Math.PI) / 180;
+  const dLat = ((lat2 - lat1) * Math.PI) / 180;
+  const dLng = ((lng2 - lng1) * Math.PI) / 180;
+  const h =
+    Math.sin(dLat / 2) ** 2 + Math.cos(p1) * Math.cos(p2) * Math.sin(dLng / 2) ** 2;
+  return 2 * earth * Math.asin(Math.min(1, Math.sqrt(h)));
+}
+
 function asIso(value: Date | string | null | undefined): string | null {
   if (!value) return null;
   const date = value instanceof Date ? value : new Date(value);
@@ -65,15 +79,21 @@ export class DropsService {
     private readonly db: DbService,
     private readonly ai: AiService,
     private readonly storage: StorageService,
+    private readonly places: PlacesService,
   ) {}
 
-  async create(dto: CreateDropDto, photo: UploadedPhoto | undefined): Promise<CreateDropResponse> {
-    this.assertBroadArea(dto.areaName);
+  async create(
+    dto: CreateDropDto,
+    user: PublicUser,
+    photo: UploadedPhoto | undefined,
+  ): Promise<CreateDropResponse> {
+    const place = await this.places.take(dto.placeId);
+    this.assertBroadArea(place.areaName);
     const mime = requireImage(photo, false);
     const written = await this.ai.generateRiddle({
       vicinityDescription: dto.vicinityDescription,
       objectHint: dto.objectDescription,
-      areaName: dto.areaName,
+      areaName: place.areaName,
     });
 
     const id = crypto.randomUUID();
@@ -91,9 +111,12 @@ export class DropsService {
           difficulty: written.difficulty,
           vicinityDescription: dto.vicinityDescription,
           objectDescription: dto.objectDescription,
-          areaName: dto.areaName,
+          areaName: place.areaName,
+          latitude: place.latitude.toFixed(6),
+          longitude: place.longitude.toFixed(6),
           photoUrl: stored?.url ?? null,
-          hiderName: dto.hiderName,
+          hiderUserId: user.id,
+          hiderName: user.displayName,
           status: "preview",
           findCount: 0,
           seeded: false,
@@ -115,11 +138,9 @@ export class DropsService {
     }
   }
 
-  async publish(id: string, hiderName: string): Promise<PublishDropResponse> {
+  async publish(id: string, user: PublicUser): Promise<PublishDropResponse> {
     const drop = await this.mustGet(id);
-    if (!namesMatch(drop.hiderName, hiderName)) {
-      throw new ForbiddenException("That display name does not match the hider.");
-    }
+    this.assertOwner(drop, user);
     if (drop.status === "retired") {
       throw new ConflictException("This drop has been retired.");
     }
@@ -135,11 +156,9 @@ export class DropsService {
     };
   }
 
-  async discard(id: string, hiderName: string): Promise<{ ok: true }> {
+  async discard(id: string, user: PublicUser): Promise<{ ok: true }> {
     const drop = await this.mustGet(id);
-    if (!namesMatch(drop.hiderName, hiderName)) {
-      throw new ForbiddenException("That display name does not match the hider.");
-    }
+    this.assertOwner(drop, user);
     if (drop.status !== "preview") {
       throw new ConflictException("Live drops stay on the board.");
     }
@@ -151,24 +170,45 @@ export class DropsService {
     return { ok: true };
   }
 
-  async list(): Promise<DropListItem[]> {
+  async list(lat: number, lng: number): Promise<DropListItem[]> {
+    const latPad = NEARBY_RADIUS_METERS / 111_320;
+    const lngPad = latPad / Math.max(0.2, Math.cos((lat * Math.PI) / 180));
     const rows = await this.db.orm
       .select()
       .from(drops)
-      .where(eq(drops.status, "open"))
-      .orderBy(desc(drops.createdAt))
-      .limit(BOARD_LIMIT);
-    return rows.map((row) => ({
-      id: row.id,
-      riddleTeaser: riddleTeaser(row.riddle),
-      difficulty: asDifficulty(row.difficulty),
-      areaName: row.areaName,
-      hiderName: row.hiderName,
-      findCount: row.findCount,
-      status: row.status === "retired" ? "retired" : "open",
-      seeded: row.seeded,
-      createdAt: asIso(row.createdAt) ?? new Date().toISOString(),
-    }));
+      .where(
+        and(
+          eq(drops.status, "open"),
+          sql`${drops.latitude} is not null`,
+          sql`${drops.latitude}::float8 between ${lat - latPad} and ${lat + latPad}`,
+          sql`${drops.longitude}::float8 between ${lng - lngPad} and ${lng + lngPad}`,
+        ),
+      )
+      .limit(200);
+    return rows
+      .flatMap((row) => {
+        const latitude = Number(row.latitude);
+        const longitude = Number(row.longitude);
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return [];
+        const distanceMeters = haversine(lat, lng, latitude, longitude);
+        if (distanceMeters > NEARBY_RADIUS_METERS) return [];
+        return [
+          {
+            id: row.id,
+            riddleTeaser: riddleTeaser(row.riddle),
+            difficulty: asDifficulty(row.difficulty),
+            areaName: row.areaName,
+            hiderName: row.hiderName,
+            findCount: row.findCount,
+            status: row.status === "retired" ? ("retired" as const) : ("open" as const),
+            seeded: row.seeded,
+            createdAt: asIso(row.createdAt) ?? new Date().toISOString(),
+            distanceMeters: Math.round(distanceMeters),
+          },
+        ];
+      })
+      .sort((a, b) => a.distanceMeters - b.distanceMeters)
+      .slice(0, BOARD_LIMIT);
   }
 
   async get(id: string): Promise<DropDetail> {
@@ -240,6 +280,21 @@ export class DropsService {
     const [row] = await this.db.orm.select().from(drops).where(eq(drops.id, id)).limit(1);
     if (!row) throw new NotFoundException("That drop isn't on the board.");
     return row;
+  }
+
+  private assertOwner(
+    drop: { hiderUserId: string | null; hiderName: string },
+    user: PublicUser,
+  ): void {
+    if (drop.hiderUserId) {
+      if (drop.hiderUserId !== user.id) {
+        throw new ForbiddenException("This drop belongs to another account.");
+      }
+      return;
+    }
+    if (!namesMatch(drop.hiderName, user.displayName)) {
+      throw new ForbiddenException("This drop belongs to another account.");
+    }
   }
 
   private assertBroadArea(areaName: string): void {

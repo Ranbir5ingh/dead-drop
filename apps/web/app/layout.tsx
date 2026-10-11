@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import { Caveat, Space_Grotesk } from "next/font/google";
+import { Caveat, Fraunces, Space_Grotesk } from "next/font/google";
 import { Suspense } from "react";
 import { SiteFrame } from "@/components/site-frame";
 import "./globals.css";
@@ -13,6 +13,12 @@ const grotesk = Space_Grotesk({
 const caveat = Caveat({
   subsets: ["latin"],
   variable: "--font-hand",
+  display: "swap",
+});
+
+const display = Fraunces({
+  subsets: ["latin"],
+  variable: "--font-display",
   display: "swap",
 });
 
@@ -48,7 +54,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${grotesk.variable} ${caveat.variable} h-full antialiased`}>
+    <html lang="en" className={`${grotesk.variable} ${caveat.variable} ${display.variable} h-full antialiased`}>
       <body className="min-h-full">
         <Suspense fallback={<div className="shell" />}>
           <SiteFrame>{children}</SiteFrame>

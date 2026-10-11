@@ -62,13 +62,13 @@ npm run dev:api    # http://127.0.0.1:8787
 npm run dev:web    # http://127.0.0.1:4317
 ```
 
-Identity is a display name in `localStorage`. There is no account. That is a demo limit, not a stealth login.
+Accounts are email and password, plus Google and GitHub when `GOOGLE_OAUTH_*` and `GITHUB_OAUTH_*` are set. Passwords are scrypt hashes. The session is an httpOnly cookie (`dd_session`), 30 days, stored as a SHA-256 hash. The browser talks to `/backend` on the site so that cookie is first-party. Set `API_PUBLIC_URL` to that public prefix (for example `https://your-app.vercel.app/backend`) so OAuth callbacks land on it.
 
 ## How a round works
 
-1. **Hide** (`/hide`) posts the vicinity, the object, a broad area name, a display name, and an optional vicinity photo to `POST /api/drops`. The drop is stored as `preview` and is not on the board.
+1. **Hide** (`/hide`) requires a session. The hider picks a real place (`GET /api/places`), then posts the vicinity, the object, that place id, and an optional vicinity photo to `POST /api/drops`. Coordinates are stored on the drop and are not returned. The drop is `preview` until confirmed.
 2. The hider reads the riddle. **Confirm** calls `POST /api/drops/:id/publish`. **Write a different one** calls `DELETE /api/drops/:id`.
-3. **Hunt** (`/hunt`) lists at most 40 open drops: teaser, difficulty, area, hider name, find count, status. No coordinates, no object answers, no vicinity text.
+3. **Hunt** (`/hunt`) reads this device's location in the browser and calls `GET /api/drops?lat=&lng=`. The API returns at most 40 open drops within 8 km, closest first, with `distanceMeters` only. No coordinates, no object answers, no vicinity text. The device reading is not stored. Sample drops without a place do not appear.
 4. **The riddle** (`/drop/[id]`) accepts up to 3 photos per finder. A verified find awards `10 × difficulty` to the hunter and `5 × difficulty` to the hider. The hider sees "Your drop was found" the next time they open the app. There are no push notifications.
 5. **Board** (`/leaderboard`) ranks real hiders and hunters. Seeded drops are excluded.
 

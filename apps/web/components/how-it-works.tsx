@@ -6,17 +6,17 @@ const STEPS = [
   {
     n: "01",
     title: "Hide",
-    body: "Describe the vicinity and the object. You keep the exact spot. The referee inks a riddle and refuses to draw a map.",
+    body: "Sign in, pick a real park, and describe the vicinity. The referee inks a riddle. The pin stays off the card.",
   },
   {
     n: "02",
     title: "Hunt",
-    body: "Read one riddle. Put the phone in a pocket. Look with your eyes until the place agrees with the words.",
+    body: "This phone asks for riddles within 8 km. You see distance, never a pin. Then you look with your eyes.",
   },
   {
     n: "03",
     title: "Found",
-    body: "Photograph it. The referee is strict and sometimes says no. A real match scores both of you. Leave the object where it is.",
+    body: "Photograph it under your account. The referee is strict and sometimes says no. A real match scores both of you.",
   },
 ];
 

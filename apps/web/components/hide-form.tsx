@@ -1,13 +1,15 @@
 "use client";
 
 import { useState, useSyncExternalStore } from "react";
-import type { CreateDropResponse } from "@deaddrop/shared";
+import type { CreateDropResponse, PlaceSuggestion } from "@deaddrop/shared";
+import { AccountGate } from "@/components/account-gate";
 import { PhotoField } from "@/components/photo-field";
+import { PlaceField } from "@/components/place-field";
 import { SuccessBurst } from "@/components/success-burst";
-import { Stamp, TrailError } from "@/components/ui";
+import { FormSkeleton, Stamp, TrailError } from "@/components/ui";
 import { ApiError, createDrop, discardDrop, publishDrop } from "@/lib/api";
 import { preparePhoto } from "@/lib/image";
-import { useDisplayName, writeDisplayName } from "@/lib/name";
+import { useSession } from "@/lib/session";
 
 const PREVIEW_KEY = "deaddrop.preview";
 const previewListeners = new Set<() => void>();
@@ -79,13 +81,11 @@ function usePreview(): CreateDropResponse | null {
 }
 
 export function HideForm() {
-  const savedName = useDisplayName();
+  const { user, ready } = useSession();
   const preview = usePreview();
-  const [name, setName] = useState<string | null>(null);
-  const displayName = name ?? savedName;
   const [phase, setPhase] = useState<Phase>("edit");
   const [liveDrop, setLiveDrop] = useState<CreateDropResponse | null>(null);
-  const [area, setArea] = useState("");
+  const [place, setPlace] = useState<PlaceSuggestion | null>(null);
   const [vicinity, setVicinity] = useState("");
   const [object, setObject] = useState("");
   const [photo, setPhoto] = useState<File | null>(null);
@@ -94,18 +94,20 @@ export function HideForm() {
 
   async function ink(event: React.FormEvent) {
     event.preventDefault();
+    if (!place) {
+      setError("Pick a place from the list. A typed name is not a pin.");
+      return;
+    }
     setError(null);
     setPhase("inking");
     try {
       const prepared = photo ? await preparePhoto(photo) : null;
       const drop = await createDrop({
-        hiderName: displayName,
-        areaName: area,
         vicinityDescription: vicinity,
         objectDescription: object,
+        placeId: place.id,
         photo: prepared,
       });
-      writeDisplayName(displayName);
       savePreview(drop);
       setPhase("preview");
     } catch (caught) {
@@ -119,10 +121,9 @@ export function HideForm() {
     setError(null);
     setPhase("publishing");
     try {
-      await publishDrop(preview.id, preview.hiderName);
+      await publishDrop(preview.id);
       setLiveDrop(preview);
       savePreview(null);
-      writeDisplayName(preview.hiderName);
       setPhase("live");
     } catch (caught) {
       setError(caught instanceof ApiError ? caught.message : "The drop did not go live.");
@@ -132,11 +133,23 @@ export function HideForm() {
 
   async function startOver() {
     if (preview) {
-      await discardDrop(preview.id, preview.hiderName).catch(() => undefined);
+      await discardDrop(preview.id).catch(() => undefined);
     }
     savePreview(null);
     setPhase("edit");
     setError(null);
+  }
+
+  if (!ready) return <FormSkeleton label="Opening your notebook…" />;
+  if (!user) {
+    return (
+      <AccountGate
+        next="/hide"
+        kicker="scores need a name"
+        title="Sign in to hide."
+        detail="The riddle is published under your account, so the board can credit you when someone finds it. The exact spot stays off the card."
+      />
+    );
   }
 
   if (shown === "live" && liveDrop) {
@@ -145,7 +158,7 @@ export function HideForm() {
         <SuccessBurst
           kicker="it's live"
           title="Now go place it."
-          detail="The board can see the riddle. Nobody can see the spot. That lives with you. Leave the object for a stranger, then put the phone away."
+          detail="People near this place can see the riddle. Nobody can see the spot. That stays on the server, not on the card. Leave the object, then put the phone away."
         />
         <p className="live-note quiet">Area on the card: {liveDrop.areaName}</p>
       </div>
@@ -165,8 +178,8 @@ export function HideForm() {
           <p className="riddle">{preview.riddle}</p>
         </article>
         <p className="quiet live-note">
-          Hunters will not see what you hid or where, exactly. If the riddle points at a door,
-          start over.
+          Hunters nearby will see the riddle and how far they are. They will not see a pin or what
+          you hid. If the riddle points at a door, start over.
         </p>
         {error ? <TrailError message={error} /> : null}
         <div className="actions">
@@ -183,35 +196,14 @@ export function HideForm() {
 
   return (
     <form onSubmit={(event) => void ink(event)}>
-      <p className="eyebrow">you keep the exact spot</p>
+      <p className="eyebrow">{user.displayName} keeps the exact spot</p>
       <h1>Hide something small.</h1>
       <p className="deck">
-        A stone, a note, a sticker. Public ground you are allowed to be on. The referee turns
-        your notes into a riddle. The answer stays off the board.
+        A stone, a note, a sticker. Public ground you are allowed to be on. Pick a real place so
+        people standing nearby can find the riddle. The pin never appears on the card.
       </p>
       <div className="section">
-        <label className="field">
-          <span>Display name</span>
-          <span className="hint">Saved on this phone only. No account.</span>
-          <input
-            value={displayName}
-            onChange={(event) => setName(event.target.value)}
-            maxLength={40}
-            required
-            autoComplete="nickname"
-          />
-        </label>
-        <label className="field">
-          <span>Broad area</span>
-          <span className="hint">A park or a neighborhood. Not a street address.</span>
-          <input
-            value={area}
-            onChange={(event) => setArea(event.target.value)}
-            maxLength={80}
-            required
-            placeholder="Riverside walk"
-          />
-        </label>
+        <PlaceField selected={place} onSelect={setPlace} />
         <label className="field">
           <span>Vicinity</span>
           <span className="hint">What a person would feel standing nearby. No door numbers.</span>

@@ -4,19 +4,18 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { MAX_FIND_ATTEMPTS, type DropDetail, type FindAttemptResponse } from "@deaddrop/shared";
+import { AccountGate } from "@/components/account-gate";
 import { PhotoField } from "@/components/photo-field";
 import { SuccessBurst } from "@/components/success-burst";
-import { Stamp, TrailError, Unfolding } from "@/components/ui";
+import { DropSkeleton, Stamp, TrailError } from "@/components/ui";
 import { ApiError, getDrop, submitFind } from "@/lib/api";
 import { preparePhoto } from "@/lib/image";
-import { useDisplayName, writeDisplayName } from "@/lib/name";
+import { useSession } from "@/lib/session";
 
 export function DropView() {
   const params = useParams<{ id: string }>();
   const id = typeof params.id === "string" ? params.id : "";
-  const savedName = useDisplayName();
-  const [name, setName] = useState<string | null>(null);
-  const displayName = name ?? savedName;
+  const { user, ready } = useSession();
   const [drop, setDrop] = useState<DropDetail | null>(null);
   const [loadedFor, setLoadedFor] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -48,13 +47,12 @@ export function DropView() {
 
   async function judge(event: React.FormEvent) {
     event.preventDefault();
-    if (!drop || !photo) return;
+    if (!drop || !photo || !user) return;
     setPhase("sending");
     setError(null);
     try {
       const prepared = await preparePhoto(photo);
-      const result = await submitFind(drop.id, displayName, prepared);
-      writeDisplayName(displayName);
+      const result = await submitFind(drop.id, prepared);
       setVerdict(result);
       setPhase("done");
     } catch (caught) {
@@ -63,7 +61,7 @@ export function DropView() {
     }
   }
 
-  if (loadedFor !== id) return <Unfolding label="Unfolding the riddle…" />;
+  if (loadedFor !== id) return <DropSkeleton />;
   if (error || !drop) {
     return (
       <TrailError
@@ -77,9 +75,11 @@ export function DropView() {
     );
   }
 
+  const next = `/drop/${drop.id}`;
+
   return (
     <div>
-      <p className="eyebrow">{drop.seeded ? "a sample, not a stash" : "no map from here"}</p>
+      <p className="eyebrow">{drop.seeded ? "a sample, not a stash" : "no pin from here"}</p>
       <h1>{drop.areaName}</h1>
       <article className="riddle-sheet section">
         <div className="meta">
@@ -98,8 +98,8 @@ export function DropView() {
         <div className="slip">
           <p className="hand slip-title">Nothing is waiting out there.</p>
           <p>
-            This riddle is sample ink so the board is not empty on a new database. It cannot be
-            scored. Hide a real object if you want the walk.
+            This riddle is sample ink. It has no real place, so it does not appear on the nearby
+            hunt, and it cannot be scored.
           </p>
           <div className="actions">
             <Link className="chunk" href="/hide">
@@ -120,7 +120,18 @@ export function DropView() {
         </div>
       ) : null}
 
-      {!drop.seeded && (phase === "camera" || phase === "sending") ? (
+      {!drop.seeded && (phase === "camera" || phase === "sending") && ready && !user ? (
+        <div className="section">
+          <AccountGate
+            next={next}
+            kicker="the score needs a name"
+            title="Sign in to claim the find."
+            detail="The photo is checked against your account, so the points land on the board under a person, not a nickname typed on the trail."
+          />
+        </div>
+      ) : null}
+
+      {!drop.seeded && (phase === "camera" || phase === "sending") && (!ready || user) ? (
         <form className="section" onSubmit={(event) => void judge(event)}>
           <div className="slip">
             <p className="hand slip-title">The referee has to see it.</p>
@@ -131,15 +142,7 @@ export function DropView() {
               a no.
             </p>
           </div>
-          <label className="field">
-            <span>Display name</span>
-            <input
-              value={displayName}
-              onChange={(event) => setName(event.target.value)}
-              maxLength={40}
-              required
-            />
-          </label>
+          {!ready ? <p className="quiet">Checking the session…</p> : null}
           <PhotoField
             label="Photo of the object"
             hint="Fill the frame with the thing itself. A couch photo will not pass."
@@ -148,7 +151,7 @@ export function DropView() {
           {error ? <TrailError message={error} /> : null}
           {phase === "sending" ? <p className="hand loading-line">The referee is looking…</p> : null}
           <div className="actions">
-            <button className="chunk" type="submit" disabled={!photo || phase === "sending"}>
+            <button className="chunk" type="submit" disabled={!photo || phase === "sending" || !user}>
               Ask the referee
             </button>
           </div>

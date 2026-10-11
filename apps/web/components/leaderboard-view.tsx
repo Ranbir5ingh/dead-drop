@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import type { LeaderboardResponse } from "@deaddrop/shared";
 import { HIDER_POINT_FACTOR, HUNTER_POINT_FACTOR } from "@deaddrop/shared";
-import { TrailError, Unfolding } from "@/components/ui";
+import { BoardSkeleton, TrailError } from "@/components/ui";
 import { ApiError, leaderboard } from "@/lib/api";
 
 export function LeaderboardView() {
@@ -40,7 +40,7 @@ export function LeaderboardView() {
       />
     );
   }
-  if (!board) return <Unfolding label="Counting souvenirs…" />;
+  if (!board) return <BoardSkeleton />;
 
   const empty = board.hiders.length === 0 && board.hunters.length === 0;
 
@@ -49,9 +49,9 @@ export function LeaderboardView() {
       <p className="eyebrow">scores mean a verified photo</p>
       <h1>The souvenir table</h1>
       <p className="deck">
-        Hunters earn {HUNTER_POINT_FACTOR} × difficulty. Hiders earn {HIDER_POINT_FACTOR} ×
-        difficulty when someone actually finds the drop. Sample riddles are not on this table.
-        Nothing here expires, and nothing scolds you for a quiet week.
+        Names here are accounts. Hunters earn {HUNTER_POINT_FACTOR} × difficulty. Hiders earn{" "}
+        {HIDER_POINT_FACTOR} × difficulty when someone actually finds the drop. Sample riddles
+        are not on this table. Nothing here expires, and nothing scolds you for a quiet week.
       </p>
       {empty ? (
         <div className="slip">

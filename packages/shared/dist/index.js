@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.BOARD_LIMIT = exports.MIN_MATCH_CONFIDENCE = exports.MAX_FIND_ATTEMPTS = exports.HIDER_POINT_FACTOR = exports.HUNTER_POINT_FACTOR = void 0;
+exports.NEARBY_RADIUS_METERS = exports.BOARD_LIMIT = exports.MIN_MATCH_CONFIDENCE = exports.MAX_FIND_ATTEMPTS = exports.HIDER_POINT_FACTOR = exports.HUNTER_POINT_FACTOR = void 0;
 exports.isDifficulty = isDifficulty;
 exports.hunterPoints = hunterPoints;
 exports.hiderPoints = hiderPoints;
@@ -10,6 +10,8 @@ exports.MAX_FIND_ATTEMPTS = 3;
 /** A yes below this confidence is forced to no. Uncertainty never scores. */
 exports.MIN_MATCH_CONFIDENCE = 0.72;
 exports.BOARD_LIMIT = 40;
+/** Default hunt radius. The phone asks; the server filters. Coordinates are not returned. */
+exports.NEARBY_RADIUS_METERS = 8_000;
 function isDifficulty(value) {
     return value === 1 || value === 2 || value === 3;
 }

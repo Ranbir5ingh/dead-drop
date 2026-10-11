@@ -8,14 +8,17 @@ import {
   Post,
   Query,
   UploadedFile,
+  UseGuards,
   UseInterceptors,
 } from "@nestjs/common";
 import { FileInterceptor } from "@nestjs/platform-express";
+import type { PublicUser } from "@deaddrop/shared";
 import { memoryStorage } from "multer";
+import { CurrentUser } from "../auth/current-user.decorator";
+import { SessionGuard } from "../auth/session.guard";
 import { DropsService } from "./drops.service";
 import { CreateDropDto } from "./dto/create-drop.dto";
-import { CreateFindDto } from "./dto/create-find.dto";
-import { HiderNameDto } from "./dto/hider-name.dto";
+import { NearbyQuery } from "./dto/nearby.query";
 import { FindsService } from "./finds.service";
 import { asUploadedPhoto, MAX_PHOTO_BYTES } from "./photo";
 
@@ -32,8 +35,14 @@ export class DropsController {
   ) {}
 
   @Get()
-  list() {
-    return this.drops.list();
+  list(@Query() query: NearbyQuery) {
+    return this.drops.list(query.lat, query.lng);
+  }
+
+  @Get("mine")
+  @UseGuards(SessionGuard)
+  mine(@CurrentUser() user: PublicUser) {
+    return this.drops.forHider(user.displayName);
   }
 
   @Get("by-hider/:name")
@@ -47,28 +56,36 @@ export class DropsController {
   }
 
   @Post()
+  @UseGuards(SessionGuard)
   @UseInterceptors(photoUpload)
-  create(@Body() dto: CreateDropDto, @UploadedFile() file: unknown) {
-    return this.drops.create(dto, asUploadedPhoto(file));
+  create(
+    @CurrentUser() user: PublicUser,
+    @Body() dto: CreateDropDto,
+    @UploadedFile() file: unknown,
+  ) {
+    return this.drops.create(dto, user, asUploadedPhoto(file));
   }
 
   @Post(":id/publish")
-  publish(@Param("id", new ParseUUIDPipe()) id: string, @Body() dto: HiderNameDto) {
-    return this.drops.publish(id, dto.hiderName);
+  @UseGuards(SessionGuard)
+  publish(@CurrentUser() user: PublicUser, @Param("id", new ParseUUIDPipe()) id: string) {
+    return this.drops.publish(id, user);
   }
 
   @Post(":id/finds")
+  @UseGuards(SessionGuard)
   @UseInterceptors(photoUpload)
   find(
+    @CurrentUser() user: PublicUser,
     @Param("id", new ParseUUIDPipe()) id: string,
-    @Body() dto: CreateFindDto,
     @UploadedFile() file: unknown,
   ) {
-    return this.finds.attempt(id, dto.finderName, asUploadedPhoto(file));
+    return this.finds.attempt(id, user, asUploadedPhoto(file));
   }
 
   @Delete(":id")
-  discard(@Param("id", new ParseUUIDPipe()) id: string, @Query() query: HiderNameDto) {
-    return this.drops.discard(id, query.hiderName);
+  @UseGuards(SessionGuard)
+  discard(@CurrentUser() user: PublicUser, @Param("id", new ParseUUIDPipe()) id: string) {
+    return this.drops.discard(id, user);
   }
 }

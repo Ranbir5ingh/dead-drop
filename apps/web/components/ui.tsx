@@ -40,6 +40,78 @@ export function Unfolding({ label }: { label: string }) {
   );
 }
 
+export function PageSkeleton() {
+  return (
+    <div aria-busy="true" aria-live="polite">
+      <div className="bone bone-kicker" />
+      <div className="bone bone-title" />
+      <div className="bone bone-line" />
+      <div className="board">
+        <div className="skeleton-card" />
+        <div className="skeleton-card" />
+      </div>
+    </div>
+  );
+}
+
+export function HuntSkeleton() {
+  return (
+    <div aria-busy="true" aria-live="polite">
+      <p className="eyebrow">where you are</p>
+      <div className="bone bone-title" />
+      <div className="bone bone-line" />
+      <div className="radar" aria-hidden="true">
+        <span />
+      </div>
+      <p className="quiet">Reading this device, then the riddles within 8 km.</p>
+      <div className="board">
+        <div className="skeleton-card" />
+        <div className="skeleton-card" />
+        <div className="skeleton-card" />
+      </div>
+    </div>
+  );
+}
+
+export function BoardSkeleton() {
+  return (
+    <div aria-busy="true" aria-live="polite">
+      <div className="bone bone-kicker" />
+      <div className="bone bone-title" />
+      <div className="bone bone-line" />
+      <div className="skeleton-table">
+        <div className="bone bone-row" />
+        <div className="bone bone-row" />
+        <div className="bone bone-row" />
+        <div className="bone bone-row" />
+      </div>
+    </div>
+  );
+}
+
+export function DropSkeleton() {
+  return (
+    <div aria-busy="true" aria-live="polite">
+      <div className="bone bone-kicker" />
+      <div className="bone bone-title" />
+      <div className="skeleton-sheet" />
+    </div>
+  );
+}
+
+export function FormSkeleton({ label }: { label: string }) {
+  return (
+    <div aria-busy="true" aria-live="polite">
+      <div className="bone bone-kicker" />
+      <div className="bone bone-title" />
+      <p className="quiet">{label}</p>
+      <div className="bone bone-field" />
+      <div className="bone bone-field" />
+      <div className="bone bone-area" />
+    </div>
+  );
+}
+
 export function TrailError({ message, onRetry }: { message: string; onRetry?: () => void }) {
   return (
     <div className="slip" role="alert">

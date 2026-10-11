@@ -12,6 +12,20 @@ export interface DropListItem {
   status: "open" | "retired";
   seeded: boolean;
   createdAt: string;
+  /** Metres from the phone that asked. The stash coordinates are not included. */
+  distanceMeters: number;
+}
+
+export interface PublicUser {
+  id: string;
+  email: string;
+  displayName: string;
+}
+
+export interface PlaceSuggestion {
+  id: string;
+  label: string;
+  areaName: string;
 }
 
 export interface DropDetail {
@@ -97,6 +111,8 @@ export const MAX_FIND_ATTEMPTS = 3;
 /** A yes below this confidence is forced to no. Uncertainty never scores. */
 export const MIN_MATCH_CONFIDENCE = 0.72;
 export const BOARD_LIMIT = 40;
+/** Default hunt radius. The phone asks; the server filters. Coordinates are not returned. */
+export const NEARBY_RADIUS_METERS = 8_000;
 
 export function isDifficulty(value: number): value is Difficulty {
   return value === 1 || value === 2 || value === 3;

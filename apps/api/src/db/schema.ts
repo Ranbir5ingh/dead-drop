@@ -9,6 +9,42 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
+export const users = pgTable("users", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  email: text("email").notNull().unique(),
+  passwordHash: text("password_hash"),
+  displayName: text("display_name").notNull(),
+  googleSub: text("google_sub").unique(),
+  githubId: text("github_id").unique(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const sessions = pgTable("sessions", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  userId: uuid("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+  tokenHash: text("token_hash").notNull().unique(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export const oauthStates = pgTable("oauth_states", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  provider: text("provider").notNull(),
+  stateHash: text("state_hash").notNull().unique(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+});
+
+export const placePicks = pgTable("place_picks", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  areaName: text("area_name").notNull(),
+  label: text("label").notNull(),
+  latitude: numeric("latitude", { precision: 9, scale: 6 }).notNull(),
+  longitude: numeric("longitude", { precision: 9, scale: 6 }).notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+});
+
 export const drops = pgTable(
   "drops",
   {
@@ -18,7 +54,10 @@ export const drops = pgTable(
     vicinityDescription: text("vicinity_description").notNull(),
     objectDescription: text("object_description").notNull(),
     areaName: text("area_name").notNull(),
+    latitude: numeric("latitude", { precision: 9, scale: 6 }),
+    longitude: numeric("longitude", { precision: 9, scale: 6 }),
     photoUrl: text("photo_url"),
+    hiderUserId: uuid("hider_user_id").references(() => users.id),
     hiderName: text("hider_name").notNull(),
     status: text("status").notNull().default("preview"),
     findCount: integer("find_count").notNull().default(0),
@@ -38,6 +77,7 @@ export const finds = pgTable(
     dropId: uuid("drop_id")
       .notNull()
       .references(() => drops.id, { onDelete: "cascade" }),
+    finderUserId: uuid("finder_user_id").references(() => users.id),
     finderName: text("finder_name").notNull(),
     photoUrl: text("photo_url").notNull(),
     verified: boolean("verified").notNull(),

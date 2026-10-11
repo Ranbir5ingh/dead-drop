@@ -1,10 +1,6 @@
 import { Transform } from "class-transformer";
-import { IsString, Length, Matches } from "class-validator";
+import { IsString, IsUUID, Length, Matches } from "class-validator";
 import { tidy } from "../../common/names";
-import { NAME_PATTERN } from "../../common/names";
-
-const AREA_PATTERN =
-  /^[\p{L}\p{M}\p{N}][\p{L}\p{M}\p{N}\s'.-]{0,78}[\p{L}\p{M}\p{N}.]?$/u;
 
 export class CreateDropDto {
   @Transform(({ value }) => tidy(value))
@@ -27,17 +23,6 @@ export class CreateDropDto {
   })
   objectDescription!: string;
 
-  @Transform(({ value }) => tidy(value))
-  @IsString()
-  @Length(2, 80, { message: "Give a broad area name, like a park or a neighborhood." })
-  @Matches(AREA_PATTERN, {
-    message: "Use a broad area name — a park or a neighborhood, not a full address.",
-  })
-  areaName!: string;
-
-  @Transform(({ value }) => tidy(value))
-  @IsString()
-  @Length(2, 40, { message: "Use a display name of 2 to 40 letters." })
-  @Matches(NAME_PATTERN, { message: "Use a display name made of letters." })
-  hiderName!: string;
+  @IsUUID("4", { message: "Pick a place from the search list." })
+  placeId!: string;
 }

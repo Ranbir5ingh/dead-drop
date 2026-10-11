@@ -30,6 +30,7 @@ async function bootstrap(): Promise<void> {
     methods: ["GET", "POST", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Accept"],
     exposedHeaders: ["X-Ai-Provider"],
+    credentials: true,
   });
 
   app.use((req: Request, res: Response, next: NextFunction) => {

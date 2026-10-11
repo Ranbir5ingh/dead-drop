@@ -11,19 +11,20 @@ npm install
 npm run dev
 ```
 
-Dev server: `http://127.0.0.1:4317`. It listens on every interface. `127.0.0.1` is listed in `allowedDevOrigins` so the browser can hydrate Hunt, Hide, and the board. Without that, those pages stay on the loading line.
+Dev server: `http://127.0.0.1:4317`. It listens on every interface. `127.0.0.1` is listed in `allowedDevOrigins` so the browser can hydrate Hunt, Hide, and the board. Without that, those pages stay on the skeleton.
 
-The display name lives in `localStorage` (`deaddrop.displayName`). There is no auth. That is intentional for the demo and it is written on the hide form.
+Sign-in is email and password, or Google and GitHub when the API has OAuth apps. The session cookie is httpOnly. Browser calls go to `/backend`, which this app proxies to `NEXT_PUBLIC_API_URL`, so the cookie stays on this origin. Hunt reads the device location and only lists drops within 8 km.
 
 ## Pages
 
 | Path | What it asks you to do |
 | --- | --- |
 | `/` | Pick a side, then leave |
-| `/hide` | Describe a real stash, confirm the riddle, go place it |
-| `/hunt` | Choose one card. The list is capped. |
+| `/hide` | Sign in, pick a real place, confirm the riddle, go place it |
+| `/hunt` | Allow location. Choose one nearby card. |
 | `/drop/[id]` | Read the riddle, photograph the object |
-| `/leaderboard` | See scores, then go hide something |
+| `/login`, `/signup` | Open an account so scores have a name |
+| `/leaderboard` | See account scores, then go hide something |
 
 Camera input is `<input type="file" accept="image/*" capture="environment">`. Photos are resized in the browser before upload.
 

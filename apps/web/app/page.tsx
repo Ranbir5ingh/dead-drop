@@ -25,8 +25,9 @@ export default function HomePage() {
         </p>
         <p>
           On the hosted demo, find-photos are sent to Google AI Studio so Gemma can referee them.
-          The riddle never includes an address, a phone number, or coordinates. The exact spot
-          stays in your head.
+          The riddle never includes an address, a phone number, or coordinates. Hunt uses this
+          device&apos;s location once, shows distance only, and does not store that reading. The
+          stash coordinates stay on the server so nearby hunters can see the riddle.
         </p>
       </section>
     </>
