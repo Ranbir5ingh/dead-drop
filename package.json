@@ -1,0 +1,18 @@
+{
+  "name": "deaddrop",
+  "private": true,
+  "description": "Dead Drop — humans hide real things for each other. AI only referees.",
+  "engines": {
+    "node": ">=20.9.0"
+  },
+  "scripts": {
+    "build:shared": "npm run build --prefix packages/shared",
+    "dev:api": "npm run dev --prefix apps/api",
+    "dev:web": "npm run dev --prefix apps/web",
+    "build:api": "npm run build --prefix packages/shared && npm run build --prefix apps/api",
+    "build:web": "npm run build --prefix packages/shared && npm run build --prefix apps/web",
+    "test": "npm run build --prefix packages/shared && npm test --prefix apps/api",
+    "seed": "npm run seed --prefix apps/api",
+    "db:push": "npm run db:push --prefix apps/api"
+  }
+}

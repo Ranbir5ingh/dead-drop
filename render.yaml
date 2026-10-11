@@ -1,0 +1,31 @@
+# Render Blueprint for the Dead Drop API (the AI runtime).
+# The web app deploys separately on Vercel with root directory apps/web.
+services:
+  - type: web
+    name: deaddrop-api
+    runtime: node
+    rootDir: apps/api
+    buildCommand: npm install && npm run build
+    startCommand: node dist/main
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      # Render sets NODE_ENV=production, which would skip the TypeScript toolchain.
+      # This keeps `npm install && npm run build` able to compile.
+      - key: NPM_CONFIG_PRODUCTION
+        value: "false"
+      - key: AI_PROVIDER
+        value: google
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: GOOGLE_AI_API_KEY
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: OLLAMA_URL
+        value: http://127.0.0.1:11434
