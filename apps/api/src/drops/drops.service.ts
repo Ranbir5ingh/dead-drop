@@ -185,7 +185,7 @@ export class DropsService {
         ),
       )
       .limit(200);
-    return rows
+    const nearby = rows
       .flatMap((row) => {
         const latitude = Number(row.latitude);
         const longitude = Number(row.longitude);
@@ -202,13 +202,38 @@ export class DropsService {
             findCount: row.findCount,
             status: row.status === "retired" ? ("retired" as const) : ("open" as const),
             seeded: row.seeded,
+            everywhere: false,
             createdAt: asIso(row.createdAt) ?? new Date().toISOString(),
             distanceMeters: Math.round(distanceMeters),
           },
         ];
       })
-      .sort((a, b) => a.distanceMeters - b.distanceMeters)
-      .slice(0, BOARD_LIMIT);
+      .sort((a, b) => a.distanceMeters - b.distanceMeters);
+
+    const worldwide = await this.db.orm
+      .select()
+      .from(drops)
+      .where(and(eq(drops.status, "open"), eq(drops.everywhere, true)))
+      .orderBy(desc(drops.createdAt));
+    const seen = new Set(nearby.map((row) => row.id));
+    const extras: DropListItem[] = [];
+    for (const row of worldwide) {
+      if (seen.has(row.id) || !isDifficulty(row.difficulty)) continue;
+      extras.push({
+        id: row.id,
+        riddleTeaser: riddleTeaser(row.riddle),
+        difficulty: row.difficulty,
+        areaName: row.areaName,
+        hiderName: row.hiderName,
+        findCount: row.findCount,
+        status: "open",
+        seeded: row.seeded,
+        everywhere: true,
+        createdAt: asIso(row.createdAt) ?? new Date().toISOString(),
+        distanceMeters: 0,
+      });
+    }
+    return [...extras, ...nearby].slice(0, BOARD_LIMIT);
   }
 
   async get(id: string): Promise<DropDetail> {

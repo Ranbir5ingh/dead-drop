@@ -9,8 +9,10 @@ export interface DropListItem {
     findCount: number;
     status: "open" | "retired";
     seeded: boolean;
+    /** Shown on every hunt. There is no stash pin behind it. */
+    everywhere: boolean;
     createdAt: string;
-    /** Metres from the phone that asked. The stash coordinates are not included. */
+    /** Metres from the phone that asked. Zero when the drop is not tied to a place. */
     distanceMeters: number;
 }
 export interface PublicUser {

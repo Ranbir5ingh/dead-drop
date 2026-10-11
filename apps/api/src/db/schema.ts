@@ -65,6 +65,8 @@ export const drops = pgTable(
     status: text("status").notNull().default("preview"),
     findCount: integer("find_count").notNull().default(0),
     seeded: boolean("seeded").notNull().default(false),
+    /** Open drops with this flag appear on every hunt, with no stored pin. */
+    everywhere: boolean("everywhere").notNull().default(false),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [

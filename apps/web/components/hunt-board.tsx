@@ -129,7 +129,9 @@ export function HuntBoard() {
               onPointerEnter={(event) => lift(event.currentTarget, true)}
               onPointerLeave={(event) => lift(event.currentTarget, false)}
             >
-              <p className="distance">{formatDistance(drop.distanceMeters)} away</p>
+              <p className="distance">
+                {drop.everywhere ? "Anywhere" : `${formatDistance(drop.distanceMeters)} away`}
+              </p>
               <p className="teaser">{drop.riddleTeaser}</p>
               <div className="meta">
                 <div>

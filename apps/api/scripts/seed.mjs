@@ -20,6 +20,39 @@ function loadEnv() {
   }
 }
 
+const PRACTICE = [
+  {
+    id: "d4eebc99-9c0b-4ef8-bb6d-6bb9bd380a44",
+    difficulty: 1,
+    area: "Practice stone",
+    hider: "Practice desk",
+    object: "a smooth stone painted with a yellow sun",
+    vicinity: "Any public bench or low wall. This practice drop is not tied to one park.",
+    riddle:
+      "A pocket-sized sun is painted on a smooth stone. It is brighter than the pebbles around it. Crouch if you mean it, photograph the stone, and leave it where you found it.",
+  },
+  {
+    id: "e5eebc99-9c0b-4ef8-bb6d-6bb9bd380a55",
+    difficulty: 2,
+    area: "Practice crane",
+    hider: "Practice desk",
+    object: "a folded paper crane",
+    vicinity: "Any sheltered public nook. This practice drop is not tied to one garden.",
+    riddle:
+      "Something folded and wing-small has taken shelter from the weather. It is paper, not stone. Photograph the crane and do not unfold it. The next person deserves the same surprise.",
+  },
+  {
+    id: "f6eebc99-9c0b-4ef8-bb6d-6bb9bd380a66",
+    difficulty: 3,
+    area: "Practice cap",
+    hider: "Practice desk",
+    object: "a bottle cap with a red thread tied through it",
+    vicinity: "Any public wall where people pause. This practice drop is not tied to one lane.",
+    riddle:
+      "Search the pause where a wall meets open air: a bottle's lost crown, wearing one red thread. It is metal, tiny, and slightly ridiculous. Photograph it, then leave it for the next person.",
+  },
+];
+
 const SEED = [
   {
     id: "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11",
@@ -67,6 +100,40 @@ if (!databaseUrl) {
 const sql = postgres(databaseUrl, { prepare: false, max: 1 });
 
 try {
+  await sql`alter table drops add column if not exists everywhere boolean not null default false`;
+  for (const drop of PRACTICE) {
+    await sql`
+      insert into drops (
+        id, riddle, difficulty, vicinity_description, object_description,
+        area_name, latitude, longitude, photo_url, hider_name, status, find_count, seeded, everywhere
+      ) values (
+        ${drop.id}::uuid,
+        ${drop.riddle},
+        ${drop.difficulty},
+        ${drop.vicinity},
+        ${drop.object},
+        ${drop.area},
+        null,
+        null,
+        null,
+        ${drop.hider},
+        'open',
+        0,
+        false,
+        true
+      )
+      on conflict (id) do update set
+        riddle = excluded.riddle,
+        difficulty = excluded.difficulty,
+        vicinity_description = excluded.vicinity_description,
+        object_description = excluded.object_description,
+        area_name = excluded.area_name,
+        hider_name = excluded.hider_name,
+        status = 'open',
+        seeded = false,
+        everywhere = true
+    `;
+  }
   for (const drop of SEED) {
     await sql`
       insert into drops (
@@ -88,7 +155,9 @@ try {
       on conflict (id) do nothing
     `;
   }
-  console.log(`Seeded ${SEED.length} sample drops. They are flagged seeded and cannot be scored.`);
+  console.log(
+    `Seeded ${SEED.length} unscored samples and ${PRACTICE.length} live practice drops visible from every location.`,
+  );
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error);
   console.error(message);
