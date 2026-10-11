@@ -136,7 +136,7 @@ main {
   position: relative;
   margin-top: -5.2rem;
   margin-inline: calc(-1 * (max(0px, 100vw - 1080px) / 2 + 1.1rem));
-  padding: 5.6rem max(1.2rem, calc((100% - 1040px) / 2)) 6.2rem;
+  padding: 5.6rem 0 6.2rem;
   background: var(--blue);
   color: var(--paper);
   overflow: hidden;
@@ -172,6 +172,9 @@ main {
   display: grid;
   gap: 1.5rem;
   align-items: end;
+  width: min(1080px, 100%);
+  margin-inline: auto;
+  padding-inline: clamp(1.35rem, 4vw, 2.75rem);
 }
 
 .sticker-kicker {
@@ -446,13 +449,17 @@ h2 { font-size: clamp(2rem, 7vw, 3rem); margin: 0 0 0.6rem; }
   font-weight: 600;
   font-size: 1.05rem;
   letter-spacing: 0;
-  line-height: 1.2;
+  line-height: 1;
   text-decoration: none;
   border-radius: 999px;
   min-height: 44px;
-  padding: 0.25rem 0.7rem;
+  padding: 0.28rem 0.7rem;
   cursor: pointer;
   white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
 }
 
 .dock a[aria-current="page"] {
@@ -466,6 +473,8 @@ h2 { font-size: clamp(2rem, 7vw, 3rem); margin: 0 0 0.6rem; }
   max-width: 8.5rem;
   overflow: hidden;
   text-overflow: ellipsis;
+  padding-top: 0.25rem;
+  padding-bottom: 0.25rem;
 }
 
 .dock-account > button[aria-expanded="true"] {
@@ -476,7 +485,7 @@ h2 { font-size: clamp(2rem, 7vw, 3rem); margin: 0 0 0.6rem; }
 .account-pop {
   position: absolute;
   right: 0;
-  bottom: calc(100% + 0.7rem);
+  bottom: calc(100% + 1.9rem);
   width: max-content;
   min-width: 12.5rem;
   max-width: min(16.5rem, calc(100vw - 2rem));
@@ -494,6 +503,7 @@ h2 { font-size: clamp(2rem, 7vw, 3rem); margin: 0 0 0.6rem; }
   width: 100%;
   max-width: none;
   justify-content: center;
+  padding: 0.72rem 0.85rem;
   font-family: var(--font-mono), "JetBrains Mono", monospace;
   font-size: 0.68rem;
   font-weight: 600;
@@ -932,7 +942,7 @@ td {
   .dock a,
   .dock button {
     flex: 1 1 auto;
-    padding: 0.3rem 0.4rem;
+    padding: 0.28rem 0.45rem;
     text-align: center;
     font-size: 1.05rem;
   }
@@ -956,7 +966,11 @@ td {
   .dock a,
   .dock button {
     font-size: 1.35rem;
-    padding: 0.2rem 0.85rem;
+    padding: 0.28rem 0.9rem;
+  }
+  .dock-account > button {
+    padding-top: 0.28rem;
+    padding-bottom: 0.28rem;
   }
   main { padding: 5.6rem 1.4rem 3rem; }
   .hero-stage {
@@ -965,6 +979,11 @@ td {
     padding-top: 6.2rem;
     padding-bottom: 3.4rem;
   }
+}
+
+.dock > a {
+  padding-top: 0.12rem;
+  padding-bottom: 0.44rem;
 }
 
 @keyframes wiggle {
