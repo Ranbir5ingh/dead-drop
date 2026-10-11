@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { PageSkeleton } from "@/components/ui";
 import { logout } from "@/lib/api";
 import { refreshSession, useSession } from "@/lib/session";
@@ -45,6 +45,8 @@ export function SiteFrame({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const { user, ready } = useSession();
   const [leaving, setLeaving] = useState(false);
+  const [account, setAccount] = useState<"closed" | "menu" | "confirm">("closed");
+  const accountRef = useRef<HTMLDivElement>(null);
   const locked = isProtected(pathname);
 
   useEffect(() => {
@@ -57,6 +59,26 @@ export function SiteFrame({ children }: { children: React.ReactNode }) {
     router.replace(`/login?next=${encodeURIComponent(pathname)}`);
   }, [ready, locked, user, pathname, router]);
 
+  useEffect(() => {
+    setAccount("closed");
+  }, [pathname]);
+
+  useEffect(() => {
+    if (account === "closed") return;
+    function onPointer(event: PointerEvent) {
+      if (!accountRef.current?.contains(event.target as Node)) setAccount("closed");
+    }
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setAccount("closed");
+    }
+    document.addEventListener("pointerdown", onPointer);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onPointer);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [account]);
+
   async function signOut() {
     setLeaving(true);
     try {
@@ -66,6 +88,7 @@ export function SiteFrame({ children }: { children: React.ReactNode }) {
     }
     await refreshSession();
     setLeaving(false);
+    setAccount("closed");
     router.push("/");
   }
 
@@ -77,9 +100,8 @@ export function SiteFrame({ children }: { children: React.ReactNode }) {
         Skip to the trail
       </a>
       <header className="topbar">
-        <Link className="wordmark" href="/">
-          <span className="pin-dot" aria-hidden="true" />
-          Dead Drop
+        <Link className="wordmark" href="/" aria-label="Dead Drop, home">
+          DD<span>.</span>
         </Link>
       </header>
       <main id="content">{locked && (!ready || !user) ? <PageSkeleton /> : children}</main>
@@ -98,9 +120,37 @@ export function SiteFrame({ children }: { children: React.ReactNode }) {
           </Link>
         ))}
         {user ? (
-          <button type="button" onClick={() => void signOut()} disabled={leaving}>
-            {leaving ? "Leaving…" : user.displayName}
-          </button>
+          <div className="dock-account" ref={accountRef}>
+            {account !== "closed" ? (
+              <div className="account-pop" role="dialog" aria-label="Account">
+                {account === "menu" ? (
+                  <button className="menu-leave" type="button" onClick={() => setAccount("confirm")}>
+                    Log out
+                  </button>
+                ) : (
+                  <>
+                    <p className="pop-copy">Log out of {user.displayName}?</p>
+                    <div className="pop-actions">
+                      <button className="pop-stay" type="button" onClick={() => setAccount("closed")} disabled={leaving}>
+                        Stay
+                      </button>
+                      <button className="pop-leave" type="button" onClick={() => void signOut()} disabled={leaving}>
+                        {leaving ? "Leaving…" : "Log out"}
+                      </button>
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : null}
+            <button
+              type="button"
+              aria-expanded={account !== "closed"}
+              aria-haspopup="dialog"
+              onClick={() => setAccount((value) => (value === "closed" ? "menu" : "closed"))}
+            >
+              {user.displayName}
+            </button>
+          </div>
         ) : null}
       </nav>
     </div>

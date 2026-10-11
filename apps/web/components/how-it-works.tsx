@@ -54,6 +54,7 @@ export function HowItWorks() {
 
   return (
     <section className="section" id="how" ref={root}>
+      <p className="eyebrow">01 — the walk</p>
       <h2>Three beats, then the outdoors</h2>
       <div className="steps">
         {STEPS.map((step) => (

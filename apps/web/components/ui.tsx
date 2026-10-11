@@ -19,10 +19,11 @@ export function ChunkLink({
 }: {
   href: string;
   children: React.ReactNode;
-  tone?: "ink" | "paper";
+  tone?: "ink" | "paper" | "ghost";
 }) {
+  const toneClass = tone === "paper" ? "chunk paper" : tone === "ghost" ? "chunk ghost" : "chunk";
   return (
-    <Link className={tone === "paper" ? "chunk paper" : "chunk"} href={href}>
+    <Link className={toneClass} href={href}>
       {children}
     </Link>
   );
@@ -134,11 +135,11 @@ export function Doodle() {
       <path
         d="M2 16 C 30 4, 40 26, 70 14 S 120 2, 150 16 190 24, 218 10"
         fill="none"
-        stroke="#1b140f"
+        stroke="#171512"
         strokeWidth="2"
         strokeLinecap="round"
       />
-      <circle cx="168" cy="8" r="3" fill="#b42318" />
+      <circle cx="168" cy="8" r="3" fill="#e8442e" />
     </svg>
   );
 }

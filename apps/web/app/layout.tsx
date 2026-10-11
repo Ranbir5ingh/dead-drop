@@ -1,12 +1,12 @@
 import type { Metadata, Viewport } from "next";
-import { Caveat, Fraunces, Space_Grotesk } from "next/font/google";
+import { Caveat, Inter_Tight, JetBrains_Mono } from "next/font/google";
 import { Suspense } from "react";
 import { SiteFrame } from "@/components/site-frame";
 import "./globals.css";
 
-const grotesk = Space_Grotesk({
+const sans = Inter_Tight({
   subsets: ["latin"],
-  variable: "--font-grotesk",
+  variable: "--font-inter",
   display: "swap",
 });
 
@@ -16,9 +16,10 @@ const caveat = Caveat({
   display: "swap",
 });
 
-const display = Fraunces({
+const mono = JetBrains_Mono({
   subsets: ["latin"],
-  variable: "--font-display",
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-mono",
   display: "swap",
 });
 
@@ -46,7 +47,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#1b140f",
+  themeColor: "#faf3e8",
   width: "device-width",
   initialScale: 1,
   viewportFit: "cover",
@@ -54,7 +55,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${grotesk.variable} ${caveat.variable} ${display.variable} h-full antialiased`}>
+    <html lang="en" className={`${sans.variable} ${caveat.variable} ${mono.variable} h-full antialiased`}>
       <body className="min-h-full">
         <Suspense fallback={<div className="shell" />}>
           <SiteFrame>{children}</SiteFrame>
