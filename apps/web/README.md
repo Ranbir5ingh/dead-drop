@@ -11,7 +11,7 @@ npm install
 npm run dev
 ```
 
-Dev server: `http://127.0.0.1:4317`.
+Dev server: `http://127.0.0.1:4317`. It listens on every interface. `127.0.0.1` is listed in `allowedDevOrigins` so the browser can hydrate Hunt, Hide, and the board. Without that, those pages stay on the loading line.
 
 The display name lives in `localStorage` (`deaddrop.displayName`). There is no auth. That is intentional for the demo and it is written on the hide form.
 
