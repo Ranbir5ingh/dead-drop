@@ -55,7 +55,7 @@ The rules that make a match mean something are not inside the model. They are in
 
 ## Prize Categories
 
-- **Best Use of Gemma ($200 featured).** Gemma generates every live riddle and verifies every find-photo. Production calls the Google AI Studio API (`gemma-3-12b-instruct`, with `gemma-3-12b-it` if that id 404s). Local dev calls Ollama (`gemma4:e4b`). The category allows serving Gemma through a provider. Safety checks in our code can reject the model's riddle or its yes.
+- **Best Use of Gemma ($200 featured).** Gemma generates every live riddle and verifies every find-photo. Production calls the Google AI Studio API (`gemma-3-12b-instruct`, then `gemma-3-12b-it`, then `gemma-4-26b-a4b-it` when the older ids are not on the key). Local dev calls Ollama (`gemma4:e4b`). The category allows serving Gemma through a provider. Safety checks in our code can reject the model's riddle or its yes.
 - **Best Use of Render ($200 featured).** The NestJS API is the AI runtime and it is a Render web service, described in `render.yaml`: build `npm install && npm run build`, start `node dist/main`, health check `/health`.
 - **Overall ($250).** The submission is in the running with everyone else.
 

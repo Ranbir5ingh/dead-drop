@@ -105,7 +105,7 @@ CORS allows only `FRONTEND_URL`.
 
 ## Models and licenses
 
-- **Production referee:** Gemma 3 12B instruct via the Gemini API, `POST https://generativelanguage.googleapis.com/v1beta/models/gemma-3-12b-instruct:generateContent`. If Google returns 404 for that id, the provider retries `gemma-3-12b-it`, which is the id AI Studio has published for the same instruct model. Text in, text out for riddles. Text plus a base64 image for verification.
+- **Production referee:** Gemma via the Gemini API, `POST https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent`. The provider tries `gemma-3-12b-instruct`, then `gemma-3-12b-it`. If both return 404, it uses `gemma-4-26b-a4b-it`, which is the Gemma model current AI Studio keys expose. Text in, text out for riddles. Text plus a base64 image for verification.
 - **Local referee:** Ollama model tag `gemma4:e4b`, as set for this challenge. `POST $OLLAMA_URL/api/chat`.
 - **Gemma terms:** weights are released under the [Gemma Terms of Use](https://ai.google.dev/gemma/terms), not an OSI license. Serving Gemma through Google AI Studio is allowed for the "Best Use of Gemma" category.
 - **This repo:** MIT. See `LICENSE`. NestJS, Next.js, Drizzle, and Postgres are the open stack around the model.

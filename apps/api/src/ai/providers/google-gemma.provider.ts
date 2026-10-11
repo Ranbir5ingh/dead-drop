@@ -3,7 +3,7 @@ import { ConfigService } from "@nestjs/config";
 import { ProviderError, type AiProvider } from "../provider";
 import { riddlePrompt, verifyPrompt, type RiddleInput, type VerifyInput } from "../prompts";
 
-const MODELS = ["gemma-3-12b-instruct", "gemma-3-12b-it"] as const;
+const MODELS = ["gemma-3-12b-instruct", "gemma-3-12b-it", "gemma-4-26b-a4b-it"] as const;
 
 interface GemmaPart {
   text?: string;
