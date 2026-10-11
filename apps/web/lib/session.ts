@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import type { PublicUser } from "@deaddrop/shared";
-import { currentUser } from "@/lib/api";
+import { restoreSession } from "@/lib/api";
 
 let user: PublicUser | null = null;
 let ready = false;
@@ -15,9 +15,9 @@ function emit(): void {
 
 export function refreshSession(): Promise<void> {
   if (inflight) return inflight;
-  inflight = currentUser()
-    .then((result) => {
-      user = result.user;
+  inflight = restoreSession()
+    .then((next) => {
+      user = next;
       ready = true;
     })
     .catch(() => {

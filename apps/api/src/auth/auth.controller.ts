@@ -1,11 +1,11 @@
 import { Body, Controller, Get, Param, Post, Query, Req, Res, UseGuards } from "@nestjs/common";
 import type { Request, Response } from "express";
+import type { PublicUser } from "@deaddrop/shared";
 import { AuthService } from "./auth.service";
-import { clearSessionCookie, clientIp, readCookie, SESSION_COOKIE, setSessionCookie } from "./cookies";
+import { clearAuthCookies, clientIp, readCookie, REFRESH_COOKIE, setAuthCookies } from "./cookies";
 import { CurrentUser } from "./current-user.decorator";
 import { LoginDto, SignupDto } from "./dto/credentials.dto";
 import { SessionGuard } from "./session.guard";
-import type { PublicUser } from "@deaddrop/shared";
 
 @Controller("auth")
 export class AuthController {
@@ -27,21 +27,28 @@ export class AuthController {
   @Post("signup")
   async signup(@Body() dto: SignupDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const result = await this.auth.signup({ ...dto, ip: clientIp(req) });
-    setSessionCookie(res, result.token);
+    setAuthCookies(res, result.accessToken, result.refreshToken);
     return { user: result.user };
   }
 
   @Post("login")
   async login(@Body() dto: LoginDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
     const result = await this.auth.login({ ...dto, ip: clientIp(req) });
-    setSessionCookie(res, result.token);
+    setAuthCookies(res, result.accessToken, result.refreshToken);
+    return { user: result.user };
+  }
+
+  @Post("refresh")
+  async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const result = await this.auth.rotate(readCookie(req.header("cookie"), REFRESH_COOKIE));
+    setAuthCookies(res, result.accessToken, result.refreshToken);
     return { user: result.user };
   }
 
   @Post("logout")
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    await this.auth.logout(readCookie(req.header("cookie"), SESSION_COOKIE));
-    clearSessionCookie(res);
+    await this.auth.logout(readCookie(req.header("cookie"), REFRESH_COOKIE));
+    clearAuthCookies(res);
     return { ok: true as const };
   }
 
@@ -68,8 +75,8 @@ export class AuthController {
       return;
     }
     try {
-      const token = await this.auth.finishOAuth(provider, code, state);
-      setSessionCookie(res, token);
+      const tokens = await this.auth.finishOAuth(provider, code, state);
+      setAuthCookies(res, tokens.accessToken, tokens.refreshToken);
       res.redirect(this.auth.frontend("/hunt"));
     } catch {
       res.redirect(this.auth.frontend("/login?error=oauth"));

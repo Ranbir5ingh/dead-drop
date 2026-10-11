@@ -62,7 +62,7 @@ npm run dev:api    # http://127.0.0.1:8787
 npm run dev:web    # http://127.0.0.1:4317
 ```
 
-Accounts are email and password, plus Google and GitHub when `GOOGLE_OAUTH_*` and `GITHUB_OAUTH_*` are set. Passwords are scrypt hashes. The session is an httpOnly cookie (`dd_session`), 30 days, stored as a SHA-256 hash. The browser talks to `/backend` on the site so that cookie is first-party. Set `API_PUBLIC_URL` to that public prefix (for example `https://your-app.vercel.app/backend`) so OAuth callbacks land on it.
+Accounts are email and password, plus Google and GitHub when `GOOGLE_OAUTH_*` and `GITHUB_OAUTH_*` are set. Passwords are scrypt hashes. Passport checks a 15-minute JWT access cookie (`dd_access`) on hunt, hide, places, finds, and the leaderboard. A rotating refresh cookie (`dd_refresh`, 30 days, stored only as a SHA-256 hash) issues a new access token on each page load. Both cookies are httpOnly and SameSite=Lax. The browser talks to `/backend` on the site so they stay first-party. Set `API_PUBLIC_URL` to that public prefix (for example `https://your-app.vercel.app/backend`) and set `JWT_SECRET`. Hide, hunt, and the leaderboard redirect to login until a refresh cookie is present.
 
 ## How a round works
 

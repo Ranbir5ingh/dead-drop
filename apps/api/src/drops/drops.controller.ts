@@ -28,6 +28,7 @@ const photoUpload = FileInterceptor("photo", {
 });
 
 @Controller("drops")
+@UseGuards(SessionGuard)
 export class DropsController {
   constructor(
     private readonly drops: DropsService,
@@ -40,7 +41,6 @@ export class DropsController {
   }
 
   @Get("mine")
-  @UseGuards(SessionGuard)
   mine(@CurrentUser() user: PublicUser) {
     return this.drops.forHider(user.displayName);
   }
@@ -56,7 +56,6 @@ export class DropsController {
   }
 
   @Post()
-  @UseGuards(SessionGuard)
   @UseInterceptors(photoUpload)
   create(
     @CurrentUser() user: PublicUser,
@@ -67,13 +66,11 @@ export class DropsController {
   }
 
   @Post(":id/publish")
-  @UseGuards(SessionGuard)
   publish(@CurrentUser() user: PublicUser, @Param("id", new ParseUUIDPipe()) id: string) {
     return this.drops.publish(id, user);
   }
 
   @Post(":id/finds")
-  @UseGuards(SessionGuard)
   @UseInterceptors(photoUpload)
   find(
     @CurrentUser() user: PublicUser,
@@ -84,7 +81,6 @@ export class DropsController {
   }
 
   @Delete(":id")
-  @UseGuards(SessionGuard)
   discard(@CurrentUser() user: PublicUser, @Param("id", new ParseUUIDPipe()) id: string) {
     return this.drops.discard(id, user);
   }

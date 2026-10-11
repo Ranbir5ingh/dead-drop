@@ -1,5 +1,6 @@
-import { Controller, Get, Query } from "@nestjs/common";
+import { Controller, Get, Query, UseGuards } from "@nestjs/common";
 import { IsString, Length } from "class-validator";
+import { SessionGuard } from "../auth/session.guard";
 import { PlacesService } from "./places.service";
 
 class PlaceQuery {
@@ -9,6 +10,7 @@ class PlaceQuery {
 }
 
 @Controller("places")
+@UseGuards(SessionGuard)
 export class PlacesController {
   constructor(private readonly places: PlacesService) {}
 

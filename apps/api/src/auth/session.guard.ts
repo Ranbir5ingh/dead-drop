@@ -1,19 +1,16 @@
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from "@nestjs/common";
+import { Injectable, UnauthorizedException } from "@nestjs/common";
+import { AuthGuard } from "@nestjs/passport";
 import type { PublicUser } from "@deaddrop/shared";
 import type { Request } from "express";
-import { AuthService } from "./auth.service";
 
 export type AuthedRequest = Request & { user: PublicUser };
 
 @Injectable()
-export class SessionGuard implements CanActivate {
-  constructor(private readonly auth: AuthService) {}
-
-  async canActivate(context: ExecutionContext): Promise<boolean> {
-    const req = context.switchToHttp().getRequest<AuthedRequest>();
-    const user = await this.auth.userFromRequest(req);
-    if (!user) throw new UnauthorizedException("Log in to keep going.");
-    req.user = user;
-    return true;
+export class SessionGuard extends AuthGuard("jwt") {
+  handleRequest<TUser = PublicUser>(err: unknown, user: TUser | false): TUser {
+    if (err || !user) {
+      throw err instanceof Error ? err : new UnauthorizedException("Log in to keep going.");
+    }
+    return user;
   }
 }

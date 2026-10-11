@@ -42,7 +42,46 @@ async function readMessage(response: Response): Promise<string> {
   return `The trail answered ${response.status}.`;
 }
 
-async function send<T>(path: string, init: RequestInit | undefined, timeoutMs: number): Promise<T> {
+let refreshInflight: Promise<PublicUser | null> | null = null;
+
+/** Use the access cookie when it is still valid. Otherwise rotate the refresh cookie. */
+export function restoreSession(): Promise<PublicUser | null> {
+  if (refreshInflight) return refreshInflight;
+  refreshInflight = (async () => {
+    try {
+      const current = await fetch(apiPath("/auth/me"), {
+        credentials: "include",
+        cache: "no-store",
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (current.ok) {
+        const body = (await current.json()) as { user?: PublicUser | null };
+        if (body.user) return body.user;
+      }
+      const response = await fetch(apiPath("/auth/refresh"), {
+        method: "POST",
+        credentials: "include",
+        cache: "no-store",
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (!response.ok) return null;
+      const body = (await response.json()) as { user?: PublicUser | null };
+      return body.user ?? null;
+    } catch {
+      return null;
+    }
+  })().finally(() => {
+    refreshInflight = null;
+  });
+  return refreshInflight;
+}
+
+async function send<T>(
+  path: string,
+  init: RequestInit | undefined,
+  timeoutMs: number,
+  allowRefresh = true,
+): Promise<T> {
   let response: Response;
   try {
     response = await fetch(apiPath(path), {
@@ -53,6 +92,10 @@ async function send<T>(path: string, init: RequestInit | undefined, timeoutMs: n
     });
   } catch {
     throw new ApiError("The field radio is quiet. Check your connection, then try once more.", 0);
+  }
+  if (response.status === 401 && allowRefresh && !path.startsWith("/auth/")) {
+    const user = await restoreSession();
+    if (user) return send(path, init, timeoutMs, false);
   }
   if (!response.ok) throw new ApiError(await readMessage(response), response.status);
   return (await response.json()) as T;

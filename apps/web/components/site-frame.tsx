@@ -3,13 +3,19 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+import { PageSkeleton } from "@/components/ui";
 import { logout } from "@/lib/api";
 import { refreshSession, useSession } from "@/lib/session";
 
-const LINKS = [
+const GAME = [
   { href: "/hide", label: "Hide" },
   { href: "/hunt", label: "Hunt" },
   { href: "/leaderboard", label: "Board" },
+];
+
+const GUEST = [
+  { href: "/login", label: "Log in" },
+  { href: "/signup", label: "Sign up" },
 ];
 
 function closerFor(pathname: string): string {
@@ -23,28 +29,47 @@ function closerFor(pathname: string): string {
   return "The useful part happens with the screen off.";
 }
 
+function isProtected(pathname: string): boolean {
+  return ["/hide", "/hunt", "/leaderboard", "/drop"].some(
+    (path) => pathname === path || pathname.startsWith(`${path}/`),
+  );
+}
+
+function isCurrent(pathname: string, href: string): boolean {
+  if (href === "/hunt") return pathname === "/hunt" || pathname.startsWith("/drop");
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
 export function SiteFrame({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const { user, ready } = useSession();
   const [leaving, setLeaving] = useState(false);
+  const locked = isProtected(pathname);
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return;
     void navigator.serviceWorker.register("/sw.js").catch(() => undefined);
   }, []);
 
+  useEffect(() => {
+    if (!ready || !locked || user) return;
+    router.replace(`/login?next=${encodeURIComponent(pathname)}`);
+  }, [ready, locked, user, pathname, router]);
+
   async function signOut() {
     setLeaving(true);
     try {
       await logout();
     } catch {
-      /* The cookie clear is what matters. A quiet radio still logs you out locally. */
+      /* Clearing the cookies is what ends the session. */
     }
     await refreshSession();
     setLeaving(false);
     router.push("/");
   }
+
+  const items = user ? GAME : GUEST;
 
   return (
     <div className="shell">
@@ -56,34 +81,28 @@ export function SiteFrame({ children }: { children: React.ReactNode }) {
           <span className="pin-dot" aria-hidden="true" />
           Dead Drop
         </Link>
-        <nav className="nav" aria-label="Game">
-          {LINKS.map((link) => (
-            <Link
-              key={link.href}
-              href={link.href}
-              aria-current={pathname === link.href ? "page" : undefined}
-            >
-              {link.label}
-            </Link>
-          ))}
-          {!ready ? <span className="bone bone-nav" aria-hidden="true" /> : null}
-          {ready && !user ? (
-            <Link href="/login" aria-current={pathname === "/login" ? "page" : undefined}>
-              Log in
-            </Link>
-          ) : null}
-          {ready && user ? (
-            <button className="nav-account" type="button" onClick={() => void signOut()} disabled={leaving}>
-              {leaving ? "Leaving…" : user.displayName}
-            </button>
-          ) : null}
-        </nav>
       </header>
-      <main id="content">{children}</main>
+      <main id="content">{locked && (!ready || !user) ? <PageSkeleton /> : children}</main>
       <footer className="footer">
         <p className="outro hand">{closerFor(pathname)}</p>
         <p className="fine">Public places only. No meetings. Distance, never a pin.</p>
       </footer>
+      <nav className="dock" aria-label="Game">
+        {items.map((item) => (
+          <Link
+            key={item.href}
+            href={item.href}
+            aria-current={isCurrent(pathname, item.href) ? "page" : undefined}
+          >
+            {item.label}
+          </Link>
+        ))}
+        {user ? (
+          <button type="button" onClick={() => void signOut()} disabled={leaving}>
+            {leaving ? "Leaving…" : user.displayName}
+          </button>
+        ) : null}
+      </nav>
     </div>
   );
 }

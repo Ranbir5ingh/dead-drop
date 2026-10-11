@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import {
   ConflictException,
   Injectable,
@@ -5,16 +6,15 @@ import {
   UnauthorizedException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import { JwtService } from "@nestjs/jwt";
 import type { PublicUser } from "@deaddrop/shared";
 import { and, eq, gt, sql } from "drizzle-orm";
-import type { Request } from "express";
 import { NAME_PATTERN } from "../common/names";
 import { DbService } from "../db/db.service";
 import { oauthStates, sessions, users } from "../db/schema";
-import { readCookie, SESSION_COOKIE } from "./cookies";
+import { ACCESS_COOKIE, readCookie, REFRESH_MS } from "./cookies";
 import { hashPassword, hashToken, newToken, verifyPassword } from "./password";
-
-const SESSION_MS = 30 * 24 * 60 * 60 * 1000;
+import type { Request } from "express";
 const STATE_MS = 10 * 60 * 1000;
 const hits = new Map<string, number[]>();
 
@@ -41,6 +41,7 @@ export class AuthService {
   constructor(
     private readonly db: DbService,
     private readonly config: ConfigService,
+    private readonly jwt: JwtService,
   ) {}
 
   async signup(input: {
@@ -48,7 +49,7 @@ export class AuthService {
     password: string;
     displayName: string;
     ip: string;
-  }): Promise<{ token: string; user: PublicUser }> {
+  }): Promise<{ accessToken: string; refreshToken: string; user: PublicUser }> {
     if (!limit(`signup:${input.ip}`, 8, 15 * 60 * 1000)) {
       throw new UnauthorizedException("Too many signups from this network. Wait a few minutes.");
     }
@@ -66,8 +67,8 @@ export class AuthService {
         .values({ email, passwordHash, displayName })
         .returning();
       if (!row) throw new ConflictException("The account did not save.");
-      const token = await this.openSession(row.id);
-      return { token, user: this.publicUser(row) };
+      const tokens = await this.issuePair(row.id);
+      return { ...tokens, user: this.publicUser(row) };
     } catch (error) {
       if (isUnique(error)) {
         throw new ConflictException("That email already has an account. Log in instead.");
@@ -80,7 +81,7 @@ export class AuthService {
     email: string;
     password: string;
     ip: string;
-  }): Promise<{ token: string; user: PublicUser }> {
+  }): Promise<{ accessToken: string; refreshToken: string; user: PublicUser }> {
     if (!limit(`login:${input.ip}`, 10, 15 * 60 * 1000)) {
       throw new UnauthorizedException("Too many tries. Wait a few minutes, then try again.");
     }
@@ -91,30 +92,74 @@ export class AuthService {
     if (!row || !ok) {
       throw new UnauthorizedException("That email and password do not match.");
     }
-    const token = await this.openSession(row.id);
-    return { token, user: this.publicUser(row) };
+    const tokens = await this.issuePair(row.id);
+    return { ...tokens, user: this.publicUser(row) };
   }
 
-  async logout(token: string | null): Promise<void> {
-    if (!token) return;
-    await this.db.orm.delete(sessions).where(eq(sessions.tokenHash, hashToken(token)));
+  async logout(refreshToken: string | null): Promise<void> {
+    if (!refreshToken) return;
+    const [row] = await this.db.orm
+      .select({ familyId: sessions.familyId })
+      .from(sessions)
+      .where(eq(sessions.tokenHash, hashToken(refreshToken)))
+      .limit(1);
+    if (!row) return;
+    await this.db.orm
+      .update(sessions)
+      .set({ revokedAt: new Date() })
+      .where(eq(sessions.familyId, row.familyId));
   }
 
   async userFromRequest(req: Request): Promise<PublicUser | null> {
-    const token = readCookie(req.header("cookie"), SESSION_COOKIE);
+    const token = readCookie(req.header("cookie"), ACCESS_COOKIE);
     if (!token) return null;
-    const now = new Date();
+    try {
+      const payload = await this.jwt.verifyAsync<{ sub?: string }>(token);
+      if (!payload.sub) return null;
+      return this.userById(payload.sub);
+    } catch {
+      return null;
+    }
+  }
+
+  async userById(id: string): Promise<PublicUser | null> {
     const [row] = await this.db.orm
-      .select({
-        id: users.id,
-        email: users.email,
-        displayName: users.displayName,
-      })
-      .from(sessions)
-      .innerJoin(users, eq(users.id, sessions.userId))
-      .where(and(eq(sessions.tokenHash, hashToken(token)), gt(sessions.expiresAt, now)))
+      .select({ id: users.id, email: users.email, displayName: users.displayName })
+      .from(users)
+      .where(eq(users.id, id))
       .limit(1);
     return row ?? null;
+  }
+
+  async rotate(refreshToken: string | null): Promise<{
+    accessToken: string;
+    refreshToken: string;
+    user: PublicUser;
+  }> {
+    if (!refreshToken) throw new UnauthorizedException("Log in to keep going.");
+    const now = new Date();
+    const [row] = await this.db.orm
+      .select()
+      .from(sessions)
+      .where(eq(sessions.tokenHash, hashToken(refreshToken)))
+      .limit(1);
+    if (!row) throw new UnauthorizedException("Log in to keep going.");
+    if (row.revokedAt || row.expiresAt <= now) {
+      const justRotated =
+        row.revokedAt !== null && now.getTime() - row.revokedAt.getTime() < 30_000;
+      if (!justRotated) {
+        await this.db.orm
+          .update(sessions)
+          .set({ revokedAt: now })
+          .where(eq(sessions.familyId, row.familyId));
+      }
+      throw new UnauthorizedException("That session ended. Log in again.");
+    }
+    await this.db.orm.update(sessions).set({ revokedAt: now }).where(eq(sessions.id, row.id));
+    const user = await this.userById(row.userId);
+    if (!user) throw new UnauthorizedException("Log in to keep going.");
+    const tokens = await this.issuePair(row.userId, row.familyId);
+    return { ...tokens, user };
   }
 
   oauthConfigured(provider: string): boolean {
@@ -150,7 +195,11 @@ export class AuthService {
     return `${base}?${params.toString()}`;
   }
 
-  async finishOAuth(provider: string, code: string, state: string): Promise<string> {
+  async finishOAuth(
+    provider: string,
+    code: string,
+    state: string,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
     if (!isProvider(provider) || !this.oauthConfigured(provider)) {
       throw new ServiceUnavailableException("That sign-in is not configured.");
     }
@@ -169,7 +218,7 @@ export class AuthService {
 
     const profile = await this.exchange(provider, code);
     const user = await this.upsertOAuth(provider, profile);
-    return this.openSession(user.id);
+    return this.issuePair(user.id);
   }
 
   frontend(path: string): string {
@@ -340,14 +389,19 @@ export class AuthService {
     }
   }
 
-  private async openSession(userId: string): Promise<string> {
-    const token = newToken();
+  private async issuePair(
+    userId: string,
+    familyId?: string,
+  ): Promise<{ accessToken: string; refreshToken: string }> {
+    const refreshToken = newToken();
     await this.db.orm.insert(sessions).values({
       userId,
-      tokenHash: hashToken(token),
-      expiresAt: new Date(Date.now() + SESSION_MS),
+      tokenHash: hashToken(refreshToken),
+      familyId: familyId ?? randomUUID(),
+      expiresAt: new Date(Date.now() + REFRESH_MS),
     });
-    return token;
+    const accessToken = await this.jwt.signAsync({ sub: userId });
+    return { accessToken, refreshToken };
   }
 
   private publicUser(row: { id: string; email: string; displayName: string }): PublicUser {
