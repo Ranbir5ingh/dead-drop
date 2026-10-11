@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { ApiError, authProviders, login, oauthStart, signup } from "@/lib/api";
@@ -128,17 +127,6 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         <button className="chunk" type="submit" disabled={busy}>
           {busy ? "Opening the gate…" : mode === "signup" ? "Create the account" : "Log in"}
         </button>
-        <p className="quiet">
-          {mode === "signup" ? (
-            <>
-              Already playing? <Link href={`/login?next=${encodeURIComponent(next)}`}>Log in</Link>
-            </>
-          ) : (
-            <>
-              New here? <Link href={`/signup?next=${encodeURIComponent(next)}`}>Create an account</Link>
-            </>
-          )}
-        </p>
       </form>
     </div>
   );
