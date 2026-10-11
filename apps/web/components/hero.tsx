@@ -36,11 +36,11 @@ export function Hero() {
           ease: "power3.out",
         });
         gsap.to("[data-pin]", {
-          y: "-=4",
-          duration: 2.4,
+          y: "-=11",
+          duration: 2.1,
           yoyo: true,
           repeat: -1,
-          stagger: 0.2,
+          stagger: 0.22,
           ease: "sine.inOut",
         });
       }, node);
